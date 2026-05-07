@@ -63,16 +63,17 @@ export async function getUserOpenAIKey(userId: string): Promise<string | null> {
 
 /**
  * Reset daily counter if it's a new UTC day, then return whether the user is
- * still under the per-day chat limit. Atomic enough for portfolio-scale.
+ * still under their plan's per-day chat limit.
  *
  * BYOK softens the urgency of strict rate limiting (users pay OpenAI directly,
  * so abuse hurts them not us). We still cap to prevent obvious script abuse.
+ * The cap differs by plan — free users get a smaller bucket than pro.
  *
  * Returns:
- *   { allowed: true, remaining: <int> } when under cap
- *   { allowed: false, limit, reset_at } when over
+ *   { allowed: true, remaining }
+ *   { allowed: false, limit }
  */
-const DAILY_CHAT_LIMIT = 200;
+import { PLAN_LIMITS } from "@/lib/stripe";
 
 export async function checkAndIncrementChatQuota(
   userId: string,
@@ -81,10 +82,13 @@ export async function checkAndIncrementChatQuota(
 
   const { data: profile, error: readErr } = await admin
     .from("profiles")
-    .select("daily_message_count, daily_count_reset_at")
+    .select("daily_message_count, daily_count_reset_at, plan")
     .eq("id", userId)
     .maybeSingle();
   if (readErr || !profile) throw new Error(readErr?.message ?? "Profile missing");
+
+  const limit =
+    PLAN_LIMITS[profile.plan as "free" | "pro"]?.dailyMessages ?? PLAN_LIMITS.free.dailyMessages;
 
   const now = new Date();
   const lastReset = new Date(profile.daily_count_reset_at);
@@ -92,8 +96,8 @@ export async function checkAndIncrementChatQuota(
   const shouldReset = now.getTime() - lastReset.getTime() >= oneDayMs;
 
   const currentCount = shouldReset ? 0 : profile.daily_message_count;
-  if (currentCount >= DAILY_CHAT_LIMIT) {
-    return { allowed: false, limit: DAILY_CHAT_LIMIT };
+  if (currentCount >= limit) {
+    return { allowed: false, limit };
   }
 
   const { error: writeErr } = await admin
@@ -105,5 +109,5 @@ export async function checkAndIncrementChatQuota(
     .eq("id", userId);
   if (writeErr) throw new Error(writeErr.message);
 
-  return { allowed: true, remaining: DAILY_CHAT_LIMIT - (currentCount + 1) };
+  return { allowed: true, remaining: limit - (currentCount + 1) };
 }

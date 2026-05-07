@@ -2,15 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSource, setSourceStatus } from "@/lib/db/sources";
 import { insertChunks, deleteChunksForSource } from "@/lib/db/chunks";
-import { getUserOpenAIKey } from "@/lib/db/profile";
+import { getUserOpenAIKey, getOwnProfile } from "@/lib/db/profile";
 import { crawlSite } from "@/lib/crawler/crawl-site";
 import { chunkPages } from "@/lib/chunking";
 import { embedTexts, isValidOpenAIKeyShape } from "@/lib/embeddings";
+import { PLAN_LIMITS } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const FREE_PAGE_CAP = 25;
 const PAGE_TIMEOUT_MS = 8_000;
 const TOTAL_TIMEOUT_MS = 50_000;
 
@@ -65,10 +65,14 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   await deleteChunksForSource(id);
   await setSourceStatus(id, { status: "crawling", error_message: null, pages_crawled: 0 });
 
+  // Plan-aware page cap (free=25, pro=100). Falls back to free if no profile.
+  const profile = await getOwnProfile();
+  const pageCap = PLAN_LIMITS[(profile?.plan ?? "free") as "free" | "pro"].pagesPerCrawl;
+
   try {
     // ─── crawl ──────────────────────────────────────────────────────────────
     const crawl = await crawlSite(source.source_url, {
-      maxPages: FREE_PAGE_CAP,
+      maxPages: pageCap,
       pageTimeoutMs: PAGE_TIMEOUT_MS,
       totalTimeoutMs: TOTAL_TIMEOUT_MS,
       onProgress: async (p) => {

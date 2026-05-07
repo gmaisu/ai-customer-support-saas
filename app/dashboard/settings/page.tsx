@@ -1,8 +1,12 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getOwnProfile } from "@/lib/db/profile";
 import { OpenAIKeyForm } from "@/components/dashboard/openai-key-form";
+import { UpgradeButton } from "@/components/billing/upgrade-button";
+import { PortalButton } from "@/components/billing/portal-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export const metadata = {
   title: "Account — Helpforge",
@@ -58,10 +62,23 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Billing</CardTitle>
           <CardDescription>
-            Stripe Checkout integration lands in Phase 6 (TASK-605). Pro tier will unlock larger
-            crawl limits and team features — AI usage stays BYOK either way.
+            {profile.plan === "pro"
+              ? "You're on Pro. Manage your subscription in the Stripe Customer Portal."
+              : "Free plan. Upgrade for larger crawls, more projects, and higher daily chat limits. AI usage stays BYOK either way."}
           </CardDescription>
         </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          {profile.plan === "pro" ? (
+            <PortalButton />
+          ) : (
+            <>
+              <UpgradeButton size="sm">Upgrade to Pro — test mode</UpgradeButton>
+              <Button variant="ghost" size="sm" render={<Link href="/pricing" />}>
+                Compare plans
+              </Button>
+            </>
+          )}
+        </CardContent>
       </Card>
     </div>
   );

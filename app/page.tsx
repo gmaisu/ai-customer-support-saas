@@ -18,6 +18,9 @@ export default async function Home() {
             Helpforge
           </Link>
           <nav className="flex items-center gap-2">
+            <Button variant="ghost" render={<Link href="/pricing" />}>
+              Pricing
+            </Button>
             {user ? (
               <Button render={<Link href="/dashboard" />}>Dashboard</Button>
             ) : (

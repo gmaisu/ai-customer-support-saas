@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createProject, deleteProject, updateProject } from "@/lib/db/projects";
+import { createProject, deleteProject, updateProject, countProjects } from "@/lib/db/projects";
+import { getOwnProfile } from "@/lib/db/profile";
+import { PLAN_LIMITS } from "@/lib/stripe";
 import type { Project } from "@/types/db";
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
@@ -24,6 +26,17 @@ export async function createProjectAction(formData: FormData): Promise<ActionRes
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Project name is required." };
   if (name.length > 80) return { ok: false, error: "Name must be 80 characters or fewer." };
+
+  // Plan-aware gating: cap project count per plan tier.
+  const profile = await getOwnProfile();
+  const planLimit = PLAN_LIMITS[(profile?.plan ?? "free") as "free" | "pro"].maxProjects;
+  const existingCount = await countProjects();
+  if (existingCount >= planLimit) {
+    return {
+      ok: false,
+      error: `${profile?.plan ?? "Free"} plan allows ${planLimit} project${planLimit === 1 ? "" : "s"}. Upgrade to add more.`,
+    };
+  }
 
   try {
     const project = await createProject({ name, user_id: auth.id });
