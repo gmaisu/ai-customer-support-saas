@@ -40,8 +40,21 @@ A full-stack AI customer support SaaS. Paste a website URL → Helpforge crawls 
 
 ## Try it (60 seconds)
 
-1. https://helpforge.vercel.app — sign up
-2. **Account** → paste your OpenAI API key
+**Option A — read-only demo (no signup):**
+
+Log in at https://helpforge.vercel.app/login
+
+```
+Email:    demo@helpforge.dev
+Password: helpforge-demo-2026
+```
+
+Pre-seeded with 1 project (Stripe Docs), 6 conversations across the last 30 days, populated analytics, and unanswered questions logged. Every screen except live chat has real data — chat is BYOK so you'll need your own key for that.
+
+**Option B — your own end-to-end (60 seconds):**
+
+1. https://helpforge.vercel.app — **Start free**
+2. **Account** → paste your OpenAI API key (get one at [platform.openai.com/api-keys](https://platform.openai.com/api-keys))
 3. **Projects** → create a project
 4. **Sources** tab → paste a URL like `https://supabase.com/docs` → **Crawl site**
 5. Watch the live status: **Pending → Crawling → Chunking → Embedding → Ready**
@@ -181,6 +194,7 @@ public/widget.js                       Embed script stub
 - [docs/SUPABASE.md](docs/SUPABASE.md) — Schema, migration workflow, RLS verification
 - [docs/COSTS.md](docs/COSTS.md) — $0 to operate (BYOK explained)
 - [docs/BRANDING.md](docs/BRANDING.md) — Name, tagline, colors, logo
+- [docs/DEMO.md](docs/DEMO.md) — Demo seeding script, video script, Upwork copy, final QA checklist
 
 ## Status
 
