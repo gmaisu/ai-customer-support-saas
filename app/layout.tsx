@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Askly — Train an AI support bot on your website in 30 seconds",
+  title: "Helpforge — Forge an AI support bot from your website in 30 seconds",
   description:
-    "Askly turns your website, PDFs, and FAQs into an AI customer support chatbot with cited answers. Built with Next.js, Supabase, and OpenAI.",
+    "Helpforge turns your website, PDFs, and FAQs into an AI customer support chatbot with cited answers. Built with Next.js, Supabase, and OpenAI.",
 };
 
 export default function RootLayout({

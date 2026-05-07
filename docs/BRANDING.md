@@ -4,17 +4,17 @@ Final, locked-in brand identity for the project. If something here is referenced
 
 ## Name
 
-**Askly**
+**Helpforge**
 
-- Spelling: capitalized "A," lowercase rest. Always written `Askly`, never `ASKLY` or `askly`.
-- Pronunciation: "ASK-lee."
-- Why this name: short, punchy, the `-ly` suffix instantly reads as "AI tool" to SaaS buyers (think Calendly, Grammarly, Notably). It signals modern tooling without describing the product literally.
+- Spelling: capitalized "H," lowercase rest, single word. Always written `Helpforge`, never `HelpForge`, `HELPFORGE`, or `helpforge`.
+- Pronunciation: "HELP-forj."
+- Why this name: descriptive without being literal — "forging" a help system from the user's content matches the product's actual workflow (raw URLs/PDFs → polished AI support agent). The verb "forge" gives the brand its own action word ("forge a bot" instead of generic "create" or "build"). Confirmed unavailable as a major company / product / GitHub project / domain at the time of selection.
 
 ## Tagline
 
-**Train an AI support bot on your website in 30 seconds.**
+**Forge an AI support bot from your website in 30 seconds.**
 
-Use this verbatim on the landing page hero and in the README. The "30 seconds" is the differentiator — don't soften it.
+Use this verbatim on the landing page hero and in the README. The "30 seconds" is the differentiator — don't soften it. The verb "forge" pairs the tagline to the brand name.
 
 ## Brand color
 
@@ -45,7 +45,7 @@ shadcn v3 + Tailwind v4 uses OKLCH (perceptually uniform color space). Don't cha
 
 - Shape: rounded square, 8px corner radius at 64×64 size
 - Background: linear gradient `violet-600 → fuchsia-500` (top-left to bottom-right)
-- Letter: bold "A" in white, centered, ~70% of the square's height
+- Letter: bold "H" in white, centered, ~70% of the square's height
 - Font: Inter or whatever the app uses for headings, weight 700 or 800
 
 Generate it once as an SVG (it's just a `<rect>` + `<text>`) and reuse everywhere. Save to `branding/logo.svg`. Export PNG variants at 64×64 (favicon) and 256×256 (OG card) when needed in Phase 7.
@@ -61,14 +61,15 @@ A minimal SVG that works:
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#g)"/>
-  <text x="32" y="44" font-family="Inter, system-ui, sans-serif" font-size="38" font-weight="800" fill="white" text-anchor="middle">A</text>
+  <text x="32" y="44" font-family="Inter, system-ui, sans-serif" font-size="38" font-weight="800" fill="white" text-anchor="middle">H</text>
 </svg>
 ```
 
 ## Voice and copy
 
-- Direct, not cute. "Train an AI support bot" not "Spin up a smart assistant."
+- Direct, not cute. "Forge an AI support bot" not "Spin up a smart assistant."
 - Specific over vague. "30 seconds" beats "fast." "Cite sources" beats "trustworthy answers."
+- The verb "forge" is reserved for the user-facing onboarding and hero copy. Don't overuse it elsewhere — internal docs and dashboard chrome should use plain language.
 - No emojis in product copy. Only in marketing if used very sparingly.
 - Avoid "magic," "AI-powered" (everything is AI-powered now), "revolutionize," "next-gen."
 

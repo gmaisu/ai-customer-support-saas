@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Visual smoke test for shadcn/ui + Askly violet theme.
+ * Visual smoke test for shadcn/ui + Helpforge violet theme.
  * Delete this route once Phase 2 starts touching real pages.
  */
 
@@ -39,7 +39,7 @@ export default function TestPage() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-8 p-8">
       <header>
-        <h1 className="text-3xl font-bold">Askly UI smoke test</h1>
+        <h1 className="text-3xl font-bold">Helpforge UI smoke test</h1>
         <p className="text-muted-foreground mt-2">
           If buttons are violet and toasts fire, the theme works.
         </p>
