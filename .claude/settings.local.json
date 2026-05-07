@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(pnpm -v)",
-      "Bash(git --version)"
-    ]
-  }
-}

@@ -4,11 +4,11 @@ What this project actually costs to build, ship, and keep running. Spoiler: ~$10
 
 ## TL;DR
 
-| Phase | Out-of-pocket cost |
-|---|---|
-| Building the project | **~$10** (OpenAI prepaid credit) |
-| Keeping the live demo running, per month | **$0** |
-| Keeping it running if it goes viral | See [If the demo gets unexpected traffic](#if-the-demo-gets-unexpected-traffic) below |
+| Phase                                    | Out-of-pocket cost                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- |
+| Building the project                     | **~$10** (OpenAI prepaid credit)                                                      |
+| Keeping the live demo running, per month | **$0**                                                                                |
+| Keeping it running if it goes viral      | See [If the demo gets unexpected traffic](#if-the-demo-gets-unexpected-traffic) below |
 
 No subscriptions. No recurring fees. Free tiers cover everything else.
 
@@ -18,29 +18,31 @@ No subscriptions. No recurring fees. Free tiers cover everything else.
 
 **Important:** this is the OpenAI **API** (platform.openai.com), not ChatGPT Plus. They're different products:
 
-| | ChatGPT Plus | OpenAI API |
-|---|---|---|
-| What it is | The chatbot at chat.openai.com | Programmatic access for apps |
-| Billing | $20/month flat | Pay-per-use, prepaid credits |
-| Needed for this project | ❌ No | ✅ Yes |
+|                         | ChatGPT Plus                   | OpenAI API                   |
+| ----------------------- | ------------------------------ | ---------------------------- |
+| What it is              | The chatbot at chat.openai.com | Programmatic access for apps |
+| Billing                 | $20/month flat                 | Pay-per-use, prepaid credits |
+| Needed for this project | ❌ No                          | ✅ Yes                       |
 
 **What we use:**
+
 - `gpt-4o-mini` — chat responses ($0.15 per 1M input tokens, $0.60 per 1M output tokens)
 - `text-embedding-3-small` — embeddings ($0.02 per 1M tokens)
 
 **Real costs at this project's scale:**
 
-| Action | Cost |
-|---|---|
-| Embed a 50-page website crawl | ~$0.01 |
-| One chat message (with retrieved context) | ~$0.0002 |
-| 100 chat messages during dev/testing | ~$0.02 |
-| Recording the demo video (50 messages) | ~$0.01 |
-| **Total to build + ship the project** | **<$1 in actual API usage** |
+| Action                                    | Cost                        |
+| ----------------------------------------- | --------------------------- |
+| Embed a 50-page website crawl             | ~$0.01                      |
+| One chat message (with retrieved context) | ~$0.0002                    |
+| 100 chat messages during dev/testing      | ~$0.02                      |
+| Recording the demo video (50 messages)    | ~$0.01                      |
+| **Total to build + ship the project**     | **<$1 in actual API usage** |
 
 The $10 prepaid credit is overkill — but worth it as a buffer. The remaining ~$9 sits there as a safety net.
 
 **Hard limit setup (do this on day one):**
+
 1. platform.openai.com → Settings → Limits
 2. Set **monthly budget** to $20
 3. Set **email alert** at $5 and $10
@@ -51,12 +53,14 @@ If a bug ever loops API calls, the hard limit auto-shuts-off requests at $20 —
 ### Vercel — $0/month
 
 Hobby tier covers everything this project needs:
+
 - 100 GB bandwidth/month (the demo would need ~5,000 visitors to exceed this)
 - Serverless function execution: 100 GB-hours/month
 - Up to 1,000,000 edge requests/month
 - Free `*.vercel.app` subdomain
 
 **Watch out:** Vercel's free tier has a **10-second function timeout**. If the URL crawler exceeds this, you have two options:
+
 - Cap pages per crawl tighter (already at 50 in the brief)
 - Upgrade to Pro ($20/month) for 60-second timeout
 
@@ -65,6 +69,7 @@ For the portfolio demo, the 50-page cap with the 10-second-per-page timeout mean
 ### Supabase — $0/month
 
 Free tier:
+
 - 500 MB database (this project will use <50 MB)
 - 1 GB storage (PDFs)
 - 2 GB bandwidth
@@ -73,12 +78,14 @@ Free tier:
 - pgvector extension included
 
 **The one limit to watch:** the free tier **pauses your database after 7 days of inactivity**. For a portfolio demo nobody is hitting, this can be annoying. Two workarounds:
+
 - Set up a cron-job.org free ping every 6 days to keep it warm
 - Or upgrade to Pro ($25/month) only if you start getting Upwork buyers actively testing the demo
 
 ### Stripe — $0/month
 
 Test mode is free forever. You only pay fees on **real** transactions, which this portfolio doesn't have.
+
 - Test mode: $0
 - Real transactions (if you ever flip to live): 2.9% + $0.30 per charge
 
@@ -86,13 +93,13 @@ For the portfolio, leave it in test mode. Buyers seeing test mode is fine — it
 
 ### Other services — all free
 
-| Service | Free tier covers |
-|---|---|
-| GitHub | Public repos, unlimited |
-| Sentry | 5,000 errors/month — way more than this needs |
-| Vercel Analytics | 2,500 events/month |
-| Loom | 25 videos, 5 min each |
-| YouTube | Unlimited unlisted videos |
+| Service          | Free tier covers                              |
+| ---------------- | --------------------------------------------- |
+| GitHub           | Public repos, unlimited                       |
+| Sentry           | 5,000 errors/month — way more than this needs |
+| Vercel Analytics | 2,500 events/month                            |
+| Loom             | 25 videos, 5 min each                         |
+| YouTube          | Unlimited unlisted videos                     |
 
 ## If the demo gets unexpected traffic
 
