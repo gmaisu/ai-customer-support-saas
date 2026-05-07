@@ -8,6 +8,7 @@ const tabs = [
   { slug: "sources", label: "Sources" },
   { slug: "chat", label: "Chat" },
   { slug: "conversations", label: "Conversations" },
+  { slug: "analytics", label: "Analytics" },
   { slug: "settings", label: "Settings" },
 ];
 

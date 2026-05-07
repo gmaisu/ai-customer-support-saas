@@ -60,3 +60,50 @@ export async function getUserOpenAIKey(userId: string): Promise<string | null> {
   if (error) throw new Error(error.message);
   return data?.openai_api_key ?? null;
 }
+
+/**
+ * Reset daily counter if it's a new UTC day, then return whether the user is
+ * still under the per-day chat limit. Atomic enough for portfolio-scale.
+ *
+ * BYOK softens the urgency of strict rate limiting (users pay OpenAI directly,
+ * so abuse hurts them not us). We still cap to prevent obvious script abuse.
+ *
+ * Returns:
+ *   { allowed: true, remaining: <int> } when under cap
+ *   { allowed: false, limit, reset_at } when over
+ */
+const DAILY_CHAT_LIMIT = 200;
+
+export async function checkAndIncrementChatQuota(
+  userId: string,
+): Promise<{ allowed: true; remaining: number } | { allowed: false; limit: number }> {
+  const admin = createAdminClient();
+
+  const { data: profile, error: readErr } = await admin
+    .from("profiles")
+    .select("daily_message_count, daily_count_reset_at")
+    .eq("id", userId)
+    .maybeSingle();
+  if (readErr || !profile) throw new Error(readErr?.message ?? "Profile missing");
+
+  const now = new Date();
+  const lastReset = new Date(profile.daily_count_reset_at);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const shouldReset = now.getTime() - lastReset.getTime() >= oneDayMs;
+
+  const currentCount = shouldReset ? 0 : profile.daily_message_count;
+  if (currentCount >= DAILY_CHAT_LIMIT) {
+    return { allowed: false, limit: DAILY_CHAT_LIMIT };
+  }
+
+  const { error: writeErr } = await admin
+    .from("profiles")
+    .update({
+      daily_message_count: currentCount + 1,
+      daily_count_reset_at: shouldReset ? now.toISOString() : profile.daily_count_reset_at,
+    })
+    .eq("id", userId);
+  if (writeErr) throw new Error(writeErr.message);
+
+  return { allowed: true, remaining: DAILY_CHAT_LIMIT - (currentCount + 1) };
+}

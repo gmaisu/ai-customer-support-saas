@@ -3,9 +3,10 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getProject } from "@/lib/db/projects";
-import { getUserOpenAIKey } from "@/lib/db/profile";
+import { getUserOpenAIKey, checkAndIncrementChatQuota } from "@/lib/db/profile";
 import { createConversation, getConversation } from "@/lib/db/conversations";
 import { addMessage, recentMessagesForContext } from "@/lib/db/messages";
+import { addUnanswered } from "@/lib/db/unanswered";
 import { retrieveContext } from "@/lib/retrieval";
 import { buildSystemPrompt } from "@/lib/prompts";
 import { isValidOpenAIKeyShape } from "@/lib/embeddings";
@@ -60,6 +61,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "OpenAI key not configured", hint: "Add your key in Account." },
       { status: 412 },
+    );
+  }
+
+  // ─── per-user daily rate limit (BYOK-soft, just abuse prevention) ────────
+  const quota = await checkAndIncrementChatQuota(user.id);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      {
+        error: "Daily chat limit reached",
+        hint: `You've sent ${quota.limit} messages today. Limit resets at the same time tomorrow.`,
+      },
+      { status: 429 },
     );
   }
 
@@ -118,7 +131,7 @@ export async function POST(req: NextRequest) {
 
   // Persist the user message synchronously so it's in the DB even if the
   // stream errors out partway through.
-  await addMessage({
+  const userMessage = await addMessage({
     conversationId,
     role: "user",
     content: userText,
@@ -151,13 +164,36 @@ export async function POST(req: NextRequest) {
     temperature: 0.3,
     onFinish: async ({ text }) => {
       try {
-        await addMessage({
+        const assistantMessage = await addMessage({
           conversationId: finalConversationId,
           role: "assistant",
           content: text,
           citations: chunks.map((c) => c.id),
           confidence: topConfidence,
         });
+
+        // ─── unanswered detection (TASK-308) ────────────────────────────────
+        // Flag a question as unanswered when:
+        //   1. Top retrieval similarity is below the threshold (no good chunks), OR
+        //   2. The model explicitly punted with a fallback phrase
+        // The unanswered table powers the Phase 5 analytics list.
+        const UNANSWERED_THRESHOLD = 0.7;
+        const fallbackPattern =
+          /\b(i don'?t (?:know|have)|i'?m not sure|i don'?t have (?:information|details|enough))\b/i;
+        const isUnanswered = topConfidence < UNANSWERED_THRESHOLD || fallbackPattern.test(text);
+
+        if (isUnanswered) {
+          await addUnanswered({
+            conversationId: finalConversationId,
+            messageId: userMessage.id,
+            question: userText,
+          }).catch((e) => {
+            console.error("[chat] Failed to log unanswered question:", e);
+          });
+        }
+        // assistantMessage referenced for clarity — no need to use, but kept
+        // as a hook point if Phase 5 wants the assistant id later.
+        void assistantMessage;
       } catch (e) {
         console.error("[chat] Failed to persist assistant message:", e);
       }
