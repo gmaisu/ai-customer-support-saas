@@ -4,23 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository status
 
-**Phase 1 complete and deployed.** Live at https://helpforge.vercel.app.
+**Phase 1 + Phase 2 deployed.** Live at https://helpforge.vercel.app.
 
-What exists:
+Phase 1 (foundation): Next.js + Supabase + auth + RLS. Done.
 
-- Next.js 16 App Router + TS strict + Tailwind 4 + shadcn/ui (Base UI under the hood — `render` prop, NOT `asChild`)
-- Supabase wired up: `lib/supabase/{client,server,admin}.ts` for browser/server/RLS-bypass clients
-- Auth: `app/(auth)/{login,signup,signup/check-email}` + `app/auth/{actions.ts,callback/route.ts}`
-- Middleware (`middleware.ts`) refreshes session on every request, redirects unauth → `/login?next=...`
-- Schema: 8 tables in `supabase/migrations/` (applied + tracked in remote migration history)
-- RLS enabled on every table; multi-tenant isolation enforced at DB layer
-- `handle_new_user()` trigger auto-creates `profiles` row on signup (verified live)
-- Branded landing page replaces Next.js boilerplate
+Phase 2 (URL → chunks): the hero flow works. Done.
+
+- Dashboard with sidebar + topbar + project CRUD
+- Project detail with nested tab routes (sources, chat, conversations, settings)
+- URL ingestion form → fire-and-forget POST `/api/sources/[id]/crawl`
+- Crawler: BFS, robots.txt, per-page + total timeout, cheerio-based HTML cleaning, same-host links only, 25-page cap to fit Vercel's 60s function budget
+- Chunking pipeline: `gpt-tokenizer` cl100k_base, 500-token chunks with 50-token overlap, per-page chunking preserves provenance
+- Embedding pipeline: `text-embedding-3-small` at 1536 dims; gracefully degrades when `OPENAI_API_KEY` missing (chunks land without vectors)
+- Vector retrieval: `match_chunks(query_embedding, target_project_id, match_count)` Postgres function with HNSW index
+- Live progress UI via Supabase Realtime (`postgres_changes` → `router.refresh()`)
+
+Phase 3 (chat) is next — needs `OPENAI_API_KEY` configured to be useful.
 
 What still needs human verification:
 
 - TASK-106 manual two-user RLS test (procedure in [docs/SUPABASE.md](docs/SUPABASE.md))
-- TASK-110 manual UI signup walkthrough on production
+- TASK-214 end-to-end Phase 2 walk-through on prod (paste URL → see chunks)
 
 Planning docs in [docs/](docs/): spec ([docs/ai_customer_support_saas.md](docs/ai_customer_support_saas.md)), execution plan ([docs/TASKS.md](docs/TASKS.md)), branding ([docs/BRANDING.md](docs/BRANDING.md)), cost ([docs/COSTS.md](docs/COSTS.md)), Supabase workflow ([docs/SUPABASE.md](docs/SUPABASE.md)).
 
@@ -94,4 +98,7 @@ The brief has an explicit "Out of Scope" section (admin page, conversation searc
 
 - **Base UI's `render` prop, not `asChild`.** shadcn v3 uses Base UI primitives. `<DialogTrigger render={<Button />}>` not `<DialogTrigger asChild><Button />`.
 - **Next 16 dev server lockfile.** Only one `pnpm dev` per directory. Stale processes cause "Another dev server is running" errors. `taskkill` the offender, then restart.
+- **`server-only` modules can't be imported by ad-hoc Node scripts.** `lib/crawler/`, `lib/chunking.ts`, `lib/embeddings.ts`, and `lib/db/*` all import `"server-only"`. They work fine inside Next.js but `pnpm dlx tsx scripts/foo.mjs` will fail with cryptic "does not provide export X" errors. Test this code through the API route or the UI, not via standalone scripts.
+- **Vercel Hobby has a 60s function timeout.** The crawl pipeline (crawl + chunk + embed) is hard-capped at 25 pages with a 50s crawl budget to leave room for embedding. If we ever need bigger crawls, defer to a queue (Inngest / Trigger.dev) — don't upgrade to Pro just for the timeout.
+- **`OPENAI_API_KEY` is graceful-optional in chunk 3.** `isEmbeddingConfigured()` lets crawls succeed without it (chunks stored, embeddings null). Sources tab surfaces an Alert when missing. Phase 3 chat will require it.
 - **Don't re-trigger TodoWrite reminders.** The harness emits reminder messages frequently; ignore them when the work is mechanical and tightly sequenced.
