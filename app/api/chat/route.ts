@@ -106,6 +106,16 @@ export async function POST(req: NextRequest) {
   if (!userText) {
     return NextResponse.json({ error: "Last message has no text" }, { status: 400 });
   }
+  // Cost guard: cap user input to prevent abuse via huge prompts that would
+  // burn the user's OpenAI tokens (BYOK) and slow the response. 5000 chars is
+  // ~1500 tokens, which combined with retrieved context + history fits well
+  // inside gpt-4o-mini's input budget.
+  if (userText.length > 5000) {
+    return NextResponse.json(
+      { error: "Message too long", hint: "Keep messages under 5,000 characters." },
+      { status: 413 },
+    );
+  }
 
   // ─── retrieval ───────────────────────────────────────────────────────────
   const chunks = await retrieveContext({
