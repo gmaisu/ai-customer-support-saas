@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function UrlSourceForm({ projectId }: { projectId: string }) {
+export function UrlSourceForm({
+  projectId,
+  disabled = false,
+}: {
+  projectId: string;
+  disabled?: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -21,14 +27,23 @@ export function UrlSourceForm({ projectId }: { projectId: string }) {
         return;
       }
       const sourceId = result.data.id;
-      toast.success("Crawl queued");
 
-      // Fire-and-forget: kick the crawl off without blocking the form. The
-      // sources list updates via revalidation + Realtime (chunk 3).
-      fetch(`/api/sources/${sourceId}/crawl`, { method: "POST" }).catch(() => {
-        // The crawl route is best-effort. If the kick-off fails, the DB row
-        // stays in 'pending' status, the user can retry.
-      });
+      // Kick off the crawl. We *do* await this minimally so we can surface
+      // a missing-key (412) error before the user wonders why nothing's
+      // happening — the source row will already exist as 'pending' if we
+      // don't, which is confusing.
+      try {
+        const res = await fetch(`/api/sources/${sourceId}/crawl`, { method: "POST" });
+        if (res.status === 412) {
+          toast.error("Add your OpenAI key in Account before crawling.");
+        } else if (!res.ok && res.status !== 200) {
+          toast.error("Couldn't start the crawl. Try again or check the source row for details.");
+        } else {
+          toast.success("Crawl started");
+        }
+      } catch {
+        toast.error("Couldn't reach the crawler. Try again.");
+      }
 
       router.refresh();
     });
@@ -46,11 +61,11 @@ export function UrlSourceForm({ projectId }: { projectId: string }) {
           type="url"
           placeholder="https://docs.stripe.com"
           required
-          disabled={pending}
+          disabled={pending || disabled}
         />
       </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Queueing…" : "Crawl site"}
+      <Button type="submit" disabled={pending || disabled}>
+        {pending ? "Starting…" : "Crawl site"}
       </Button>
     </form>
   );

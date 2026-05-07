@@ -20,6 +20,8 @@ export interface Profile {
   plan: Plan;
   daily_message_count: number;
   daily_count_reset_at: string;
+  /** User-supplied OpenAI key. Null until the user adds one in settings. */
+  openai_api_key: string | null;
   created_at: string;
   updated_at: string;
 }

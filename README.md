@@ -14,6 +14,7 @@ This is a portfolio MVP. The full plan, scope, and rationale live in [docs/](doc
 
 - **Full-stack TypeScript** — Next.js 16 App Router, server components, server actions, streaming
 - **RAG pipeline** — chunking, embeddings (OpenAI `text-embedding-3-small`), pgvector retrieval with HNSW
+- **BYOK architecture** — users supply their own OpenAI API key; the platform never proxies AI usage
 - **Multi-tenant SaaS** — Row-Level Security across 8 tables, project-scoped isolation enforced at the DB layer
 - **Authentication** — Supabase Auth with email/password, session refresh middleware, protected routes
 - **Real-time UI** — Supabase Realtime subscriptions for live crawl progress

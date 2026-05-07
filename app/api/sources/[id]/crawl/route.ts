@@ -2,24 +2,27 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSource, setSourceStatus } from "@/lib/db/sources";
 import { insertChunks, deleteChunksForSource } from "@/lib/db/chunks";
+import { getUserOpenAIKey } from "@/lib/db/profile";
 import { crawlSite } from "@/lib/crawler/crawl-site";
 import { chunkPages } from "@/lib/chunking";
-import { embedTexts, isEmbeddingConfigured } from "@/lib/embeddings";
+import { embedTexts, isValidOpenAIKeyShape } from "@/lib/embeddings";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const FREE_PAGE_CAP = 25;
 const PAGE_TIMEOUT_MS = 8_000;
-const TOTAL_TIMEOUT_MS = 50_000; // crawl budget; leave room for chunking + embedding
+const TOTAL_TIMEOUT_MS = 50_000;
 
 /**
  * POST /api/sources/:id/crawl
  *
- * Full pipeline: crawl → chunk → embed → ready. Runs synchronously inside
- * the 60s function budget. Embedding is skipped (with a warning logged on
- * the source) if OPENAI_API_KEY is not configured — the rest of the pipeline
- * still works for diagnostics.
+ * Full pipeline: crawl → chunk → embed → ready.
+ *
+ * BYOK: the user must have set an OpenAI key in their profile before this
+ * route succeeds. If the key is missing, the crawl is skipped entirely with
+ * a 412 — pointing the user to the settings page is friendlier than running
+ * a half-pipeline that produces unembedded chunks.
  *
  * Status transitions:
  *   pending → crawling → chunking → embedding → ready
@@ -36,6 +39,18 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // BYOK gate: refuse to start if the user hasn't connected their OpenAI key.
+  const apiKey = await getUserOpenAIKey(user.id);
+  if (!apiKey || !isValidOpenAIKeyShape(apiKey)) {
+    return NextResponse.json(
+      {
+        error: "OpenAI key not configured",
+        hint: "Add your key in Account → API Key.",
+      },
+      { status: 412 },
+    );
+  }
+
   const source = await getSource(id);
   if (!source) {
     return NextResponse.json({ error: "Source not found" }, { status: 404 });
@@ -47,7 +62,6 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Already crawled or in progress" }, { status: 409 });
   }
 
-  // Drop any stale chunks from a prior failed run.
   await deleteChunksForSource(id);
   await setSourceStatus(id, { status: "crawling", error_message: null, pages_crawled: 0 });
 
@@ -96,27 +110,21 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       return NextResponse.json({ ok: false, error: "No chunks produced" }, { status: 200 });
     }
 
-    // ─── embed ──────────────────────────────────────────────────────────────
-    let embeddings: (number[] | null)[];
-    let warning: string | null = null;
-    if (isEmbeddingConfigured()) {
-      await setSourceStatus(id, { status: "embedding" });
-      try {
-        embeddings = await embedTexts(chunks.map((c) => c.content));
-      } catch (e) {
-        // Embedding failure shouldn't lose the crawl. Mark the source as
-        // failed but keep the crawl artifacts for inspection.
-        const message = e instanceof Error ? e.message : String(e);
-        await setSourceStatus(id, {
-          status: "failed",
-          error_message: `Embedding failed: ${message}`.slice(0, 500),
-        });
-        return NextResponse.json({ ok: false, error: message }, { status: 200 });
-      }
-    } else {
-      embeddings = chunks.map(() => null);
-      warning =
-        "OPENAI_API_KEY not set — chunks stored without embeddings; chat retrieval disabled.";
+    // ─── embed (with the user's key) ────────────────────────────────────────
+    await setSourceStatus(id, { status: "embedding" });
+    let embeddings: number[][];
+    try {
+      embeddings = await embedTexts(
+        apiKey,
+        chunks.map((c) => c.content),
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      await setSourceStatus(id, {
+        status: "failed",
+        error_message: `Embedding failed: ${message}`.slice(0, 500),
+      });
+      return NextResponse.json({ ok: false, error: message }, { status: 200 });
     }
 
     // ─── persist ────────────────────────────────────────────────────────────
@@ -138,8 +146,6 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       ok: true,
       pagesCrawled: crawl.pagesCrawled,
       chunksCreated: chunks.length,
-      embedded: isEmbeddingConfigured(),
-      warning,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

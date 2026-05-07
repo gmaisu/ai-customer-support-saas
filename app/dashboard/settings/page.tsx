@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { getOwnProfile } from "@/lib/db/profile";
+import { OpenAIKeyForm } from "@/components/dashboard/openai-key-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -7,22 +9,29 @@ export const metadata = {
 };
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, daily_message_count, created_at")
-    .eq("id", user?.id ?? "")
-    .maybeSingle();
+  const profile = await getOwnProfile();
+  if (!profile) redirect("/login");
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Account</h1>
-        <p className="text-muted-foreground text-sm">Plan, usage, and account info.</p>
+        <p className="text-muted-foreground text-sm">Profile, API key, plan.</p>
       </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>OpenAI API key</CardTitle>
+          <CardDescription>
+            Helpforge is BYOK — bring your own OpenAI key. We use it to embed your sources and
+            answer chat messages on your behalf. You pay OpenAI directly; Helpforge never sees a
+            cent.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <OpenAIKeyForm existingKey={profile.openai_api_key} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -32,23 +41,15 @@ export default async function SettingsPage() {
         <CardContent className="space-y-3 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Email</span>
-            <span className="font-medium">{user?.email}</span>
+            <span className="font-medium">{profile.email}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Plan</span>
-            <Badge variant={profile?.plan === "pro" ? "default" : "secondary"}>
-              {profile?.plan ?? "free"}
-            </Badge>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Messages today</span>
-            <span className="font-medium">{profile?.daily_message_count ?? 0}</span>
+            <Badge variant={profile.plan === "pro" ? "default" : "secondary"}>{profile.plan}</Badge>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Member since</span>
-            <span className="font-medium">
-              {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "—"}
-            </span>
+            <span className="font-medium">{new Date(profile.created_at).toLocaleDateString()}</span>
           </div>
         </CardContent>
       </Card>
@@ -57,7 +58,8 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Billing</CardTitle>
           <CardDescription>
-            Stripe Checkout integration lands in Phase 6 (TASK-605).
+            Stripe Checkout integration lands in Phase 6 (TASK-605). Pro tier will unlock larger
+            crawl limits and team features — AI usage stays BYOK either way.
           </CardDescription>
         </CardHeader>
       </Card>

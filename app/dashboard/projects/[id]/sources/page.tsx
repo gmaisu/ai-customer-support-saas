@@ -1,26 +1,33 @@
+import Link from "next/link";
 import { listSources } from "@/lib/db/sources";
-import { isEmbeddingConfigured } from "@/lib/embeddings";
+import { getOwnProfile } from "@/lib/db/profile";
 import { UrlSourceForm } from "@/components/dashboard/url-source-form";
 import { SourcesList } from "@/components/dashboard/sources-list";
 import { SourcesRealtime } from "@/components/dashboard/sources-realtime";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export default async function SourcesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const sources = await listSources(id);
-  const embeddingConfigured = isEmbeddingConfigured();
+  const [sources, profile] = await Promise.all([listSources(id), getOwnProfile()]);
+  const hasKey = !!profile?.openai_api_key;
 
   return (
     <div className="space-y-6">
       <SourcesRealtime projectId={id} />
 
-      {!embeddingConfigured && (
+      {!hasKey && (
         <Alert>
-          <AlertTitle>OpenAI key not configured</AlertTitle>
-          <AlertDescription>
-            Crawls will succeed and chunks will be stored, but embeddings (and therefore the chat)
-            won&apos;t work until <code>OPENAI_API_KEY</code> is set in the environment.
+          <AlertTitle>Connect your OpenAI key to start crawling</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>
+              Helpforge is BYOK — you supply the OpenAI key, you pay OpenAI directly, and crawls
+              embed pages into a knowledge base. Without a key the crawler stays disabled.
+            </p>
+            <Button size="sm" render={<Link href="/dashboard/settings" />}>
+              Add your key
+            </Button>
           </AlertDescription>
         </Alert>
       )}
@@ -34,7 +41,7 @@ export default async function SourcesPage({ params }: { params: Promise<{ id: st
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UrlSourceForm projectId={id} />
+          <UrlSourceForm projectId={id} disabled={!hasKey} />
         </CardContent>
       </Card>
 
