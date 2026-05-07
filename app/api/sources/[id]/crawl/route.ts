@@ -1,27 +1,29 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getSource, setSourceStatus } from "@/lib/db/sources";
+import { insertChunks, deleteChunksForSource } from "@/lib/db/chunks";
 import { crawlSite } from "@/lib/crawler/crawl-site";
+import { chunkPages } from "@/lib/chunking";
+import { embedTexts, isEmbeddingConfigured } from "@/lib/embeddings";
 
 export const runtime = "nodejs";
-// Vercel Hobby plan: 60s. Crawl is capped to fit inside this.
 export const maxDuration = 60;
 
-const FREE_PAGE_CAP = 25; // brief recommends 50 free / 500 pro; tightened to 25 for the 60s budget
+const FREE_PAGE_CAP = 25;
 const PAGE_TIMEOUT_MS = 8_000;
-const TOTAL_TIMEOUT_MS = 55_000; // leave 5s of headroom under maxDuration
+const TOTAL_TIMEOUT_MS = 50_000; // crawl budget; leave room for chunking + embedding
 
 /**
  * POST /api/sources/:id/crawl
  *
- * Triggered fire-and-forget by the URL form on the client. Runs the crawl
- * synchronously in this request, transitioning sources.status as it goes.
+ * Full pipeline: crawl → chunk → embed → ready. Runs synchronously inside
+ * the 60s function budget. Embedding is skipped (with a warning logged on
+ * the source) if OPENAI_API_KEY is not configured — the rest of the pipeline
+ * still works for diagnostics.
  *
- * Auth check: only the source's owning user can trigger a crawl. RLS would
- * normally enforce this, but we use the admin client for status writes (to
- * avoid the user's session affecting visibility mid-crawl), so we re-check
- * ownership here at the top.
+ * Status transitions:
+ *   pending → crawling → chunking → embedding → ready
+ *   any → failed (with error_message)
  */
 export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -34,7 +36,6 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Verify ownership through RLS-aware client.
   const source = await getSource(id);
   if (!source) {
     return NextResponse.json({ error: "Source not found" }, { status: 404 });
@@ -46,59 +47,99 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Already crawled or in progress" }, { status: 409 });
   }
 
+  // Drop any stale chunks from a prior failed run.
+  await deleteChunksForSource(id);
   await setSourceStatus(id, { status: "crawling", error_message: null, pages_crawled: 0 });
 
   try {
-    const result = await crawlSite(source.source_url, {
+    // ─── crawl ──────────────────────────────────────────────────────────────
+    const crawl = await crawlSite(source.source_url, {
       maxPages: FREE_PAGE_CAP,
       pageTimeoutMs: PAGE_TIMEOUT_MS,
       totalTimeoutMs: TOTAL_TIMEOUT_MS,
       onProgress: async (p) => {
-        // Best-effort progress update. Errors here are non-fatal.
         await setSourceStatus(id, { pages_crawled: p.pagesCrawled }).catch(() => {});
       },
     });
 
-    if (result.pagesCrawled === 0) {
+    if (crawl.pagesCrawled === 0) {
       await setSourceStatus(id, {
         status: "failed",
         error_message:
-          result.failures[0]?.reason ??
+          crawl.failures[0]?.reason ??
           "No pages could be crawled (robots.txt, redirects, or empty pages).",
       });
       return NextResponse.json({ ok: false, error: "No pages crawled" }, { status: 200 });
     }
 
-    // Persist the concatenated text via admin client (avoid RLS write headaches
-    // mid-job; ownership was already verified at the top).
-    const admin = createAdminClient();
-    const { error } = await admin
-      .from("sources")
-      .update({
-        // Schema doesn't have a content column; chunking pipeline (TASK-210)
-        // will read this from the result and persist into chunks.content.
-        // For now we record metadata and leave full text materialization to
-        // the chunking step in chunk 3.
-        char_count: result.charCount,
-        pages_crawled: result.pagesCrawled,
-        title: new URL(source.source_url).hostname,
-      })
-      .eq("id", id);
-    if (error) throw new Error(error.message);
+    await setSourceStatus(id, {
+      status: "chunking",
+      pages_crawled: crawl.pagesCrawled,
+      char_count: crawl.charCount,
+      title: new URL(source.source_url).hostname,
+    });
 
-    // TODO(chunk-3): trigger chunking + embedding pipeline here.
-    // For now, mark the source as ready since the crawl text is in memory but
-    // not yet persisted. This will change when chunking lands — status will
-    // transition crawling → chunking → embedding → ready.
+    // ─── chunk ──────────────────────────────────────────────────────────────
+    const chunks = chunkPages(
+      crawl.pages.map((p) => ({
+        sourceUrl: p.url,
+        title: p.title,
+        text: p.content,
+      })),
+    );
+
+    if (chunks.length === 0) {
+      await setSourceStatus(id, {
+        status: "failed",
+        error_message: "Crawl succeeded but produced no usable text chunks.",
+      });
+      return NextResponse.json({ ok: false, error: "No chunks produced" }, { status: 200 });
+    }
+
+    // ─── embed ──────────────────────────────────────────────────────────────
+    let embeddings: (number[] | null)[];
+    let warning: string | null = null;
+    if (isEmbeddingConfigured()) {
+      await setSourceStatus(id, { status: "embedding" });
+      try {
+        embeddings = await embedTexts(chunks.map((c) => c.content));
+      } catch (e) {
+        // Embedding failure shouldn't lose the crawl. Mark the source as
+        // failed but keep the crawl artifacts for inspection.
+        const message = e instanceof Error ? e.message : String(e);
+        await setSourceStatus(id, {
+          status: "failed",
+          error_message: `Embedding failed: ${message}`.slice(0, 500),
+        });
+        return NextResponse.json({ ok: false, error: message }, { status: 200 });
+      }
+    } else {
+      embeddings = chunks.map(() => null);
+      warning =
+        "OPENAI_API_KEY not set — chunks stored without embeddings; chat retrieval disabled.";
+    }
+
+    // ─── persist ────────────────────────────────────────────────────────────
+    await insertChunks(
+      chunks.map((c, i) => ({
+        source_id: id,
+        project_id: source.project_id,
+        content: c.content,
+        embedding: embeddings[i],
+        token_count: c.tokenCount,
+        chunk_index: c.chunkIndex,
+        metadata: c.metadata,
+      })),
+    );
+
     await setSourceStatus(id, { status: "ready" });
 
     return NextResponse.json({
       ok: true,
-      pagesCrawled: result.pagesCrawled,
-      pagesAttempted: result.pagesAttempted,
-      pagesSkipped: result.pagesSkipped,
-      failures: result.failures.length,
-      charCount: result.charCount,
+      pagesCrawled: crawl.pagesCrawled,
+      chunksCreated: chunks.length,
+      embedded: isEmbeddingConfigured(),
+      warning,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

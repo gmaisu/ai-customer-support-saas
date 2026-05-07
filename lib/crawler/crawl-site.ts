@@ -25,7 +25,9 @@ export interface CrawlResult {
   pagesAttempted: number;
   pagesSkipped: number;
   failures: Array<{ url: string; reason: string }>;
-  /** Concatenated text of every successful page, separated by URL markers. */
+  /** Per-page payloads. Chunking runs on these so each chunk carries its source URL. */
+  pages: PageResult[];
+  /** Concatenated text of every successful page, separated by URL markers. Convenience only. */
   content: string;
   charCount: number;
 }
@@ -119,6 +121,7 @@ export async function crawlSite(rawRootUrl: string, opts: CrawlOptions = {}): Pr
     pagesAttempted: pages.length + failures.length + skipped,
     pagesSkipped: skipped,
     failures,
+    pages,
     content: pages.map((p) => `[URL: ${p.url}]\n# ${p.title}\n\n${p.content}`).join("\n\n---\n\n"),
     charCount: pages.reduce((sum, p) => sum + p.charCount, 0),
   };
