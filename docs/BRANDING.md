@@ -31,12 +31,13 @@ These map directly to Tailwind class names — no custom hex values in component
 
 ```css
 :root {
-  --primary: 262 83% 58%; /* violet-600 in HSL */
-  --accent: 292 84% 61%;  /* fuchsia-500 in HSL */
+  --primary: oklch(0.541 0.281 293.009); /* violet-600 */
+  --accent: oklch(0.969 0.016 293.756); /* violet-50 (subtle bg) */
+  --ring: oklch(0.541 0.281 293.009); /* violet-600 focus ring */
 }
 ```
 
-shadcn/ui uses HSL triplets (no `hsl()` wrapper) for its design tokens — that's why the values above look unusual.
+shadcn v3 + Tailwind v4 uses OKLCH (perceptually uniform color space). Don't change to HSL — it'll break the dark-mode contrast tuning.
 
 ## Logo
 
