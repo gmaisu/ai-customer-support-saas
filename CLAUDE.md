@@ -4,7 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository status
 
-Phase 1 in progress. Next.js 16 (App Router) + TypeScript strict + Tailwind 4 + ESLint + Prettier scaffolded. No Supabase/auth/DB yet. Planning docs live in [docs/](docs/) — the spec is [docs/ai_customer_support_saas.md](docs/ai_customer_support_saas.md), execution plan is [docs/TASKS.md](docs/TASKS.md), cost rationale is [docs/COSTS.md](docs/COSTS.md).
+**Phase 1 complete and deployed.** Live at https://helpforge.vercel.app.
+
+What exists:
+
+- Next.js 16 App Router + TS strict + Tailwind 4 + shadcn/ui (Base UI under the hood — `render` prop, NOT `asChild`)
+- Supabase wired up: `lib/supabase/{client,server,admin}.ts` for browser/server/RLS-bypass clients
+- Auth: `app/(auth)/{login,signup,signup/check-email}` + `app/auth/{actions.ts,callback/route.ts}`
+- Middleware (`middleware.ts`) refreshes session on every request, redirects unauth → `/login?next=...`
+- Schema: 8 tables in `supabase/migrations/` (applied + tracked in remote migration history)
+- RLS enabled on every table; multi-tenant isolation enforced at DB layer
+- `handle_new_user()` trigger auto-creates `profiles` row on signup (verified live)
+- Branded landing page replaces Next.js boilerplate
+
+What still needs human verification:
+
+- TASK-106 manual two-user RLS test (procedure in [docs/SUPABASE.md](docs/SUPABASE.md))
+- TASK-110 manual UI signup walkthrough on production
+
+Planning docs in [docs/](docs/): spec ([docs/ai_customer_support_saas.md](docs/ai_customer_support_saas.md)), execution plan ([docs/TASKS.md](docs/TASKS.md)), branding ([docs/BRANDING.md](docs/BRANDING.md)), cost ([docs/COSTS.md](docs/COSTS.md)), Supabase workflow ([docs/SUPABASE.md](docs/SUPABASE.md)).
 
 ## What this project is
 
@@ -57,3 +75,23 @@ The brief has an explicit "Out of Scope" section (admin page, conversation searc
 - `pnpm lint` — ESLint
 - `pnpm format` — Prettier write
 - `pnpm format:check` — Prettier verify (CI-friendly)
+- `node scripts/test-signup.mjs` — admin-API signup smoke test (verifies trigger fires + cleans up)
+
+## Deployment
+
+- Vercel project `helpforge` linked via `.vercel/`. Deploy with `pnpm dlx vercel deploy --prod --yes --scope jiomaisuradze-2523s-projects` (needs `VERCEL_TOKEN`).
+- Env vars in Vercel production: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `NEXT_PUBLIC_SITE_URL`. Add new ones with `vercel env add`.
+- GitHub auto-deploy is NOT wired up (user signed up to Vercel via email, not "Continue with GitHub"). All deploys go through the CLI for now.
+
+## Supabase tooling
+
+- CLI is linked to the dev project (`kcxynextmjgjewafzpzg`). Don't re-link.
+- Secret key (`sb_secret_...`) lives in `.env.local` only — never `git add` it.
+- New schema changes: `pnpm dlx supabase migration new <description>` → edit the file → `pnpm dlx supabase db push`.
+- The first two migrations were originally applied via dashboard SQL editor; CLI history was repaired with `migration repair --status applied`. Future migrations will go through the standard CLI flow.
+
+## Gotchas (real, not hypothetical)
+
+- **Base UI's `render` prop, not `asChild`.** shadcn v3 uses Base UI primitives. `<DialogTrigger render={<Button />}>` not `<DialogTrigger asChild><Button />`.
+- **Next 16 dev server lockfile.** Only one `pnpm dev` per directory. Stale processes cause "Another dev server is running" errors. `taskkill` the offender, then restart.
+- **Don't re-trigger TodoWrite reminders.** The harness emits reminder messages frequently; ignore them when the work is mechanical and tightly sequenced.
