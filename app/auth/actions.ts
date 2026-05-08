@@ -58,3 +58,23 @@ export async function signOut(): Promise<void> {
   revalidatePath("/", "layout");
   redirect("/");
 }
+
+const DEMO_EMAIL = "demo@helpforge.dev";
+const DEMO_PASSWORD = "helpforge-demo-2026";
+
+/**
+ * One-click "Sign in as demo" for the landing page. Signs the visitor in to
+ * the seeded demo account so they can browse the populated dashboard without
+ * creating their own user. Demo account has no OpenAI key, so live chat is
+ * gated — exactly as designed.
+ */
+export async function signInAsDemo(): Promise<AuthResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({
+    email: DEMO_EMAIL,
+    password: DEMO_PASSWORD,
+  });
+  if (error) return { error: "Demo account is unavailable right now. Try signing up instead." };
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}

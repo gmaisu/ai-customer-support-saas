@@ -4,10 +4,17 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { toast } from "sonner";
-import { SendIcon, RotateCcwIcon } from "lucide-react";
+import { ArrowRightIcon, RotateCcwIcon, SendIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Logo } from "@/components/logo";
 import { MessageBubble } from "./message-bubble";
+
+const SUGGESTED_PROMPTS = [
+  "Give me a quick overview of the main concepts",
+  "What's the recommended way to get started?",
+  "What are the most common mistakes to avoid?",
+];
 
 export function ChatPanel({
   projectId,
@@ -93,15 +100,22 @@ export function ChatPanel({
       </header>
 
       <div ref={scrollerRef} className="flex-1 space-y-4 overflow-y-auto p-4">
-        {messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-muted-foreground text-sm">
-              {disabled
-                ? "Crawl a source and add your OpenAI key to start chatting."
-                : "Ask a question grounded in your sources."}
-            </p>
-          </div>
-        )}
+        {messages.length === 0 &&
+          (disabled ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+              <p className="text-muted-foreground text-sm">
+                Crawl a source and add your OpenAI key to start chatting.
+              </p>
+            </div>
+          ) : (
+            <ChatEmpty
+              onSelect={(prompt) => {
+                setInput(prompt);
+                sendMessage({ text: prompt });
+                setInput("");
+              }}
+            />
+          ))}
 
         {messages.map((m, i) => (
           <MessageBubble
@@ -132,6 +146,42 @@ export function ChatPanel({
           <span className="sr-only">Send</span>
         </Button>
       </form>
+    </div>
+  );
+}
+
+function ChatEmpty({ onSelect }: { onSelect: (prompt: string) => void }) {
+  return (
+    <div className="flex flex-col gap-5 py-6">
+      <div className="bg-muted flex items-center gap-3 rounded-xl border p-4">
+        <Logo size={36} glow />
+        <div>
+          <div className="font-semibold">Ready when you are</div>
+          <div className="text-muted-foreground text-sm">
+            I&apos;m grounded in your project&apos;s indexed sources. Ask me anything.
+          </div>
+        </div>
+      </div>
+      <div>
+        <span className="text-muted-foreground inline-flex items-center gap-1.5 px-1 font-mono text-[11px] tracking-[0.12em] uppercase">
+          <SparklesIcon className="size-3" />
+          Try one of these
+        </span>
+      </div>
+      <div className="grid gap-2">
+        {SUGGESTED_PROMPTS.map((p, i) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onSelect(p)}
+            className="bg-card hover:border-primary hover:bg-accent flex items-center gap-3 rounded-lg border px-3.5 py-3 text-left text-sm transition-colors"
+          >
+            <span className="text-muted-foreground font-mono text-[11px]">0{i + 1}</span>
+            <span className="flex-1">{p}</span>
+            <ArrowRightIcon className="text-muted-foreground size-3.5" />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
