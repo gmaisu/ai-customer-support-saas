@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Logo } from "@/components/logo";
-import { Button } from "@/components/ui/button";
 import { ForgeDemo } from "@/components/landing/forge-demo";
 import { ChatPreview } from "@/components/landing/chat-preview";
 import { DemoSigninButton } from "@/components/landing/demo-signin-button";
@@ -30,7 +29,7 @@ const FEATURES = [
   {
     icon: BarChart3Icon,
     title: "Built-in analytics",
-    body: "Conversations per day, unanswered question rate, and the exact questions your knowledge base couldn't cover.",
+    body: "Conversations per day, unanswered question rate, exact questions your knowledge base couldn't cover.",
   },
   {
     icon: KeyIcon,
@@ -67,6 +66,23 @@ const HOW_IT_WORKS = [
   },
 ];
 
+/**
+ * Landing page styling notes (matches the Claude Design handoff):
+ * - Body font-size is 14px globally; marketing surfaces upsize specific
+ *   elements explicitly rather than relying on text-base.
+ * - Container widths are 1100 (hero/sections) and 1200 (header) — use
+ *   max-w-[1100px] / max-w-[1200px] instead of approximating with max-w-6xl.
+ * - All marketing CTAs use the .hf-btn-brand utility (gradient, glow) and
+ *   the .hf-btn-* size utilities; we don't use shadcn <Button> here so the
+ *   hover/glow shadows match the design exactly.
+ */
+
+const BTN_BASE =
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-[filter,box-shadow,background] active:translate-y-[1px] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+const BTN_LG = "h-11 px-5 text-[15px] rounded-xl";
+const BTN_SM = "h-[30px] px-2.5 text-[13px] rounded-md";
+const BTN_GHOST = "bg-transparent text-foreground hover:bg-muted";
+
 export default async function Home() {
   const supabase = await createClient();
   const {
@@ -75,30 +91,30 @@ export default async function Home() {
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* ─── Sticky header ─────────────────────────────────────────────── */}
+      {/* ─── Sticky header (max-w 1200, padding 12/24) ─────────────────── */}
       <header className="bg-background/75 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 border-b backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <Link href="/" className="flex items-center gap-2.5 font-semibold">
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-3">
+          <Link href="/" className="inline-flex items-center gap-2.5 text-base font-semibold">
             <Logo size={28} />
             Helpforge
           </Link>
           <nav className="flex items-center gap-1.5">
-            <Button variant="ghost" size="sm" render={<Link href="/pricing" />}>
+            <Link href="/pricing" className={`${BTN_BASE} ${BTN_SM} ${BTN_GHOST}`}>
               Pricing
-            </Button>
+            </Link>
             {user ? (
-              <Button size="sm" className="hf-btn-brand" render={<Link href="/dashboard" />}>
+              <Link href="/dashboard" className={`${BTN_BASE} ${BTN_SM} hf-btn-brand rounded-md`}>
                 Dashboard
-              </Button>
+              </Link>
             ) : (
               <>
-                <Button variant="ghost" size="sm" render={<Link href="/login" />}>
+                <Link href="/login" className={`${BTN_BASE} ${BTN_SM} ${BTN_GHOST}`}>
                   Sign in
-                </Button>
-                <Button size="sm" className="hf-btn-brand" render={<Link href="/signup" />}>
+                </Link>
+                <Link href="/signup" className={`${BTN_BASE} ${BTN_SM} hf-btn-brand rounded-md`}>
                   Get started
                   <ArrowRightIcon className="size-3.5" />
-                </Button>
+                </Link>
               </>
             )}
           </nav>
@@ -106,62 +122,98 @@ export default async function Home() {
       </header>
 
       <main className="flex-1">
-        {/* ─── Hero ──────────────────────────────────────────────────── */}
+        {/* ─── Hero (max-w 1100, padding 88px top / 72px bottom) ─────── */}
         <section className="relative overflow-hidden border-b">
-          {/* Glow backdrop */}
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                "radial-gradient(900px 480px at 50% -10%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 60%), radial-gradient(700px 400px at 80% 20%, color-mix(in oklab, var(--accent) 60%, transparent), transparent 70%)",
+                "radial-gradient(900px 480px at 50% -10%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 60%), radial-gradient(700px 400px at 80% 20%, color-mix(in oklab, var(--accent) 50%, transparent), transparent 70%)",
             }}
           />
-          <div className="relative mx-auto max-w-5xl px-6 py-20 text-center sm:py-28">
+          <div
+            className="relative mx-auto max-w-[1100px] px-6 text-center"
+            style={{ paddingTop: 88, paddingBottom: 72 }}
+          >
             <span
-              className="bg-accent text-accent-foreground inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium"
+              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 text-xs font-medium"
               style={{
+                height: 28,
+                background: "var(--accent)",
+                color: "var(--accent-foreground)",
                 borderColor: "color-mix(in oklab, var(--primary) 30%, transparent)",
               }}
             >
               <SparklesIcon className="size-3" />
               Forge MVP · Open source · Live demo below
             </span>
-            <h1 className="mx-auto mt-6 max-w-4xl text-5xl leading-[1.02] font-extrabold tracking-[-0.035em] text-balance sm:text-6xl md:text-7xl">
+            <h1
+              className="mx-auto font-extrabold text-balance"
+              style={{
+                fontSize: "clamp(40px, 6vw, 76px)",
+                lineHeight: 1.02,
+                letterSpacing: "-0.035em",
+                margin: "24px auto 16px",
+                maxWidth: 920,
+              }}
+            >
               Forge an AI support bot from
               <br />
               your website in{" "}
               <span className="relative inline-block">
-                <span className="hf-forge-text font-display pr-1.5 italic">30 seconds</span>
+                <span
+                  className="hf-forge-text font-display italic"
+                  style={{ fontWeight: 500, paddingRight: 6 }}
+                >
+                  30 seconds
+                </span>
                 <span
                   aria-hidden
-                  className="absolute right-0 -bottom-1 left-0 h-2 rounded-md opacity-25 blur-[2px]"
-                  style={{ background: "var(--grad-forge)" }}
+                  className="absolute right-0 left-0 rounded-lg blur-[2px]"
+                  style={{
+                    bottom: -4,
+                    height: 8,
+                    background: "var(--grad-forge)",
+                    opacity: 0.25,
+                  }}
                 />
               </span>
               .
             </h1>
-            <p className="text-muted-foreground mx-auto mt-6 max-w-xl text-lg leading-relaxed">
+            <p
+              className="mx-auto"
+              style={{
+                fontSize: 18,
+                color: "var(--muted-foreground)",
+                maxWidth: 620,
+                margin: "0 auto 32px",
+                lineHeight: 1.5,
+              }}
+            >
               Paste a URL. Helpforge crawls your site, embeds it with pgvector, and gives you a
               chatbot with cited answers — no hallucinations, no cleanup.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               {user ? (
-                <Button size="lg" className="hf-btn-brand" render={<Link href="/dashboard" />}>
+                <Link href="/dashboard" className={`${BTN_BASE} ${BTN_LG} hf-btn-brand`}>
                   Go to dashboard
                   <ArrowRightIcon className="size-4" />
-                </Button>
+                </Link>
               ) : (
                 <>
-                  <Button size="lg" className="hf-btn-brand" render={<Link href="/signup" />}>
+                  <Link href="/signup" className={`${BTN_BASE} ${BTN_LG} hf-btn-brand`}>
                     Start free
                     <ArrowRightIcon className="size-4" />
-                  </Button>
-                  <DemoSigninButton size="lg" />
+                  </Link>
+                  <DemoSigninButton />
                 </>
               )}
             </div>
-            <p className="text-muted-foreground mt-3.5 text-xs">
+            <p
+              className="text-xs"
+              style={{ color: "var(--muted-foreground)", marginTop: 14, opacity: 0.8 }}
+            >
               {user ? (
                 <>You&apos;re already signed in — head to the dashboard.</>
               ) : (
@@ -174,17 +226,26 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ─── Live forge demo ───────────────────────────────────────── */}
-        <section className="border-b px-6 py-14">
-          <div className="mx-auto max-w-5xl">
-            <div className="mb-9 text-center">
-              <span className="text-muted-foreground font-mono text-[11px] tracking-[0.12em] uppercase">
-                Live forge
-              </span>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+        {/* ─── Live forge demo (max-w 1100, padding 56/24) ─────────────── */}
+        <section className="border-b" style={{ padding: "56px 24px" }}>
+          <div className="mx-auto max-w-[1100px]">
+            <div className="text-center" style={{ marginBottom: 36 }}>
+              <SectionLabel>Live forge</SectionLabel>
+              <h2
+                className="font-bold"
+                style={{
+                  fontSize: 32,
+                  letterSpacing: "-0.02em",
+                  margin: "8px 0 8px",
+                  lineHeight: 1.1,
+                }}
+              >
                 URL in. Knowledge base out.
               </h2>
-              <p className="text-muted-foreground mx-auto mt-2 max-w-md">
+              <p
+                className="mx-auto"
+                style={{ color: "var(--muted-foreground)", maxWidth: 540, fontSize: 14 }}
+              >
                 Watch the pipeline work — the same stepper your users see when they paste a URL.
               </p>
             </div>
@@ -192,75 +253,127 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ─── Features grid ─────────────────────────────────────────── */}
-        <section className="bg-muted/30 border-b px-6 py-20">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-10 max-w-xl">
-              <span className="text-muted-foreground font-mono text-[11px] tracking-[0.12em] uppercase">
-                Anatomy
-              </span>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">What it does</h2>
-              <p className="text-muted-foreground mt-2">
-                A complete RAG SaaS — crawler, chunker, embedder, retriever, chat, billing — wired
-                up.
-              </p>
+        {/* ─── Features grid (max-w 1100, padding 80/24, bg-soft) ──────── */}
+        <section
+          className="border-b"
+          style={{
+            padding: "80px 24px",
+            background: "var(--bg-soft, color-mix(in oklab, var(--muted) 50%, var(--background)))",
+          }}
+        >
+          <div className="mx-auto max-w-[1100px]">
+            <div
+              className="flex flex-wrap items-end justify-between gap-6"
+              style={{ marginBottom: 40 }}
+            >
+              <div>
+                <SectionLabel>Anatomy</SectionLabel>
+                <h2
+                  className="font-bold"
+                  style={{
+                    fontSize: 32,
+                    letterSpacing: "-0.02em",
+                    margin: "8px 0 8px",
+                    lineHeight: 1.1,
+                  }}
+                >
+                  What it does
+                </h2>
+                <p style={{ color: "var(--muted-foreground)", maxWidth: 540, fontSize: 14 }}>
+                  A complete RAG SaaS — crawler, chunker, embedder, retriever, chat, billing — wired
+                  up.
+                </p>
+              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map(({ icon: Icon, title, body }) => (
                 <div
                   key={title}
-                  className="bg-card hover:border-primary/40 rounded-xl border p-6 transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  className="bg-card rounded-xl border transition-all hover:-translate-y-0.5 hover:border-violet-500/40 hover:shadow-md"
+                  style={{ padding: 24 }}
                 >
                   <div
-                    className="bg-accent text-primary mb-3.5 inline-flex size-9 items-center justify-center rounded-lg"
+                    className="inline-flex items-center justify-center"
                     style={{
-                      borderColor: "color-mix(in oklab, var(--primary) 25%, transparent)",
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: "var(--accent)",
+                      color: "var(--primary-hex, #7c3aed)",
+                      marginBottom: 14,
                     }}
                   >
-                    <Icon className="size-[18px]" />
+                    <Icon size={18} />
                   </div>
-                  <h3 className="mb-1 text-base font-semibold">{title}</h3>
-                  <p className="text-muted-foreground text-sm">{body}</p>
+                  <h3 className="font-semibold" style={{ fontSize: 16, margin: "0 0 4px" }}>
+                    {title}
+                  </h3>
+                  <p style={{ color: "var(--muted-foreground)", fontSize: 14, margin: 0 }}>
+                    {body}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ─── How it works ──────────────────────────────────────────── */}
-        <section className="border-b px-6 py-20">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-9">
-              <span className="text-muted-foreground font-mono text-[11px] tracking-[0.12em] uppercase">
-                Workflow
-              </span>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+        {/* ─── How it works (max-w 1100, padding 80/24) ────────────────── */}
+        <section className="border-b" style={{ padding: "80px 24px" }}>
+          <div className="mx-auto max-w-[1100px]">
+            <div style={{ marginBottom: 36 }}>
+              <SectionLabel>Workflow</SectionLabel>
+              <h2
+                className="font-bold"
+                style={{
+                  fontSize: 32,
+                  letterSpacing: "-0.02em",
+                  margin: "8px 0 0",
+                  lineHeight: 1.1,
+                }}
+              >
                 Three things. In order.
               </h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {HOW_IT_WORKS.map((s) => (
-                <div key={s.n} className="bg-card relative overflow-hidden rounded-xl border p-7">
-                  <div className="hf-grad-text font-display text-[60px] leading-none italic">
+                <div
+                  key={s.n}
+                  className="bg-card relative overflow-hidden rounded-xl border"
+                  style={{ padding: 28 }}
+                >
+                  <div
+                    className="hf-grad-text font-display italic"
+                    style={{ fontSize: 60, lineHeight: 1, fontWeight: 500 }}
+                  >
                     {s.n}
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold">{s.title}</h3>
-                  <p className="text-muted-foreground mt-1 text-sm">{s.body}</p>
+                  <h3 className="font-semibold" style={{ fontSize: 18, margin: "16px 0 6px" }}>
+                    {s.title}
+                  </h3>
+                  <p style={{ color: "var(--muted-foreground)", fontSize: 14, margin: 0 }}>
+                    {s.body}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ─── Chat preview ──────────────────────────────────────────── */}
-        <section className="bg-muted/30 border-b px-6 py-20">
-          <div className="mx-auto max-w-6xl">
+        {/* ─── Chat preview (max-w 1100, bg-soft, padding 80/24) ───────── */}
+        <section
+          className="border-b"
+          style={{
+            padding: "80px 24px",
+            background: "var(--bg-soft, color-mix(in oklab, var(--muted) 50%, var(--background)))",
+          }}
+        >
+          <div className="mx-auto max-w-[1100px]">
             <ChatPreview />
           </div>
         </section>
 
-        {/* ─── Final CTA ─────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden border-b px-6 py-24">
+        {/* ─── Final CTA (max-w 720, padding 100/24, radial glow) ──────── */}
+        <section className="relative overflow-hidden border-b" style={{ padding: "100px 24px" }}>
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0"
@@ -269,30 +382,45 @@ export default async function Home() {
                 "radial-gradient(700px 360px at 50% 50%, color-mix(in oklab, var(--primary) 20%, transparent), transparent 70%)",
             }}
           />
-          <div className="relative mx-auto max-w-2xl text-center">
-            <span className="text-muted-foreground font-mono text-[11px] tracking-[0.12em] uppercase">
-              Strike
-            </span>
-            <h2 className="mt-2 text-4xl font-extrabold tracking-tight sm:text-5xl">
+          <div className="relative mx-auto max-w-[720px] text-center">
+            <SectionLabel>Strike</SectionLabel>
+            <h2
+              className="font-extrabold"
+              style={{
+                fontSize: 44,
+                letterSpacing: "-0.025em",
+                margin: "8px 0 16px",
+                lineHeight: 1.05,
+              }}
+            >
               Ready to forge something?
             </h2>
-            <p className="text-muted-foreground mx-auto mt-4 max-w-lg text-base sm:text-lg">
+            <p
+              className="mx-auto"
+              style={{
+                color: "var(--muted-foreground)",
+                fontSize: 17,
+                marginBottom: 28,
+                maxWidth: 520,
+                lineHeight: 1.5,
+              }}
+            >
               Free plan covers a real demo. No credit card. Bring your OpenAI key — pay OpenAI
               directly for usage.
             </p>
-            <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               {user ? (
-                <Button size="lg" className="hf-btn-brand" render={<Link href="/dashboard" />}>
+                <Link href="/dashboard" className={`${BTN_BASE} ${BTN_LG} hf-btn-brand`}>
                   Go to dashboard
                   <ArrowRightIcon className="size-4" />
-                </Button>
+                </Link>
               ) : (
                 <>
-                  <Button size="lg" className="hf-btn-brand" render={<Link href="/signup" />}>
+                  <Link href="/signup" className={`${BTN_BASE} ${BTN_LG} hf-btn-brand`}>
                     Start free
                     <ArrowRightIcon className="size-4" />
-                  </Button>
-                  <DemoSigninButton size="lg" />
+                  </Link>
+                  <DemoSigninButton />
                 </>
               )}
             </div>
@@ -300,14 +428,30 @@ export default async function Home() {
         </section>
       </main>
 
-      <footer className="px-6 py-8">
-        <div className="text-muted-foreground mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 text-sm">
-          <span className="flex items-center gap-2">
+      <footer style={{ padding: "32px 24px", color: "var(--muted-foreground)", fontSize: 13 }}>
+        <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2">
             <Logo size={18} />© 2026 Helpforge
           </span>
-          <span className="text-xs">MIT licensed · Built with Next.js, Supabase, OpenAI BYOK</span>
+          <span>MIT licensed · Built with Next.js, Supabase, OpenAI BYOK</span>
         </div>
       </footer>
     </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="font-mono uppercase"
+      style={{
+        fontSize: 11,
+        letterSpacing: "0.12em",
+        color: "var(--muted-foreground)",
+        opacity: 0.85,
+      }}
+    >
+      {children}
+    </span>
   );
 }

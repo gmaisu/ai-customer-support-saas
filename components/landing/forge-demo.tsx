@@ -2,8 +2,11 @@
 
 /**
  * Live forge demo — kinetic stepper that loops on the landing page.
- * Mirrors the real Sources-tab pipeline visually so the marketing
- * page actually shows what the product does, not just describes it.
+ * Implementation matches the Claude Design handoff's <ForgeDemo /> exactly:
+ * - Outer card: 28px padding, 12px radius, dual radial halo backdrop
+ * - URL bar: 540px max-width, 12px radius, 14px h-padding, 10px v-padding
+ * - Stepper nodes: 44×44, 21px connectors, 0.4s color transitions
+ * - Stat tiles: 16px padding, 28px values, 11px mono uppercase labels
  */
 
 import { useEffect, useState } from "react";
@@ -17,14 +20,13 @@ const STEPS = [
   { key: "ready", label: "Ready", note: "pgvector HNSW index built" },
 ];
 
-const TOTAL_PHASES = STEPS.length + 2; // pre + idle gap
+const TOTAL_PHASES = STEPS.length + 2;
 
 export function ForgeDemo() {
   const [stepIdx, setStepIdx] = useState(0);
   const [pages, setPages] = useState(0);
   const [chunks, setChunks] = useState(0);
 
-  // Drive the loop
   useEffect(() => {
     const tick = setInterval(() => {
       setStepIdx((s) => (s + 1) % TOTAL_PHASES);
@@ -32,9 +34,6 @@ export function ForgeDemo() {
     return () => clearInterval(tick);
   }, []);
 
-  // Animate counters toward step-derived targets. All setState calls happen
-  // inside the interval callback (event-handler-like), not directly in the
-  // effect body, which keeps react-hooks/set-state-in-effect happy.
   useEffect(() => {
     const targetPages = stepIdx === 0 ? 0 : stepIdx >= 2 ? 24 : Math.min(24, stepIdx * 9);
     const targetChunks = stepIdx === 0 ? 0 : stepIdx >= 3 ? 187 : 0;
@@ -59,8 +58,8 @@ export function ForgeDemo() {
   const elapsed = Math.min(28, stepIdx * 6);
 
   return (
-    <div className="bg-card relative overflow-hidden rounded-2xl border p-7">
-      {/* Soft halo */}
+    <div className="bg-card relative overflow-hidden rounded-xl border" style={{ padding: 28 }}>
+      {/* Soft dual-radial halo */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -99,19 +98,39 @@ export function ForgeDemo() {
         </div>
       )}
 
-      {/* Fake URL bar */}
-      <div className="bg-muted relative mx-auto mb-6 flex max-w-md items-center gap-2.5 rounded-xl border px-3.5 py-2.5">
-        <GlobeIcon className="text-primary size-4" />
-        <span className="font-mono text-xs sm:text-sm">https://docs.stripe.com</span>
-        <span className="flex-1" />
+      {/* Fake URL bar — design spec: 540px max-width, 12px radius, 10/14 padding */}
+      <div
+        className="relative mx-auto flex items-center"
+        style={{
+          gap: 10,
+          padding: "10px 14px",
+          borderRadius: 12,
+          background: "var(--bg-grid)",
+          border: "1px solid var(--border)",
+          marginBottom: 24,
+          maxWidth: 540,
+        }}
+      >
+        <GlobeIcon size={16} style={{ color: "var(--primary)" }} />
+        <span className="font-mono" style={{ fontSize: 13, color: "var(--foreground)" }}>
+          https://docs.stripe.com
+        </span>
+        <span style={{ flex: 1 }} />
         <span
-          className="border-forge-glow/40 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium"
+          className="inline-flex items-center"
           style={{
+            gap: 5,
+            height: 22,
+            padding: "0 8px",
+            borderRadius: 999,
+            fontSize: 11,
+            fontWeight: 500,
             background: "color-mix(in oklab, var(--forge) 16%, var(--card))",
+            border: "1px solid color-mix(in oklab, var(--forge) 40%, transparent)",
             color: "var(--ember)",
           }}
         >
-          <FlameIcon className="size-3" />
+          <FlameIcon size={11} />
           {stepIdx === 0 ? "Idle" : isForged ? "Forged" : "Forging"}
         </span>
       </div>
@@ -119,8 +138,8 @@ export function ForgeDemo() {
       {/* Stepper */}
       <Stepper activeIdx={activeIdx} done={isForged} />
 
-      {/* Stat tiles */}
-      <div className="relative mt-6 grid grid-cols-3 gap-3">
+      {/* Stat tiles — design: 28px value, 11px mono label, 16px padding */}
+      <div className="relative grid grid-cols-3" style={{ gap: 16, marginTop: 28 }}>
         <StatTile label="Pages crawled" value={pages} suffix=" / 25" />
         <StatTile label="Chunks embedded" value={chunks} suffix=" · 1536-d" />
         <StatTile label="Time" value={elapsed} suffix="s" />
@@ -159,15 +178,33 @@ function StepNode({
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center text-center">
       <div
-        className={cn(
-          "flex size-11 items-center justify-center rounded-full border text-sm font-bold transition-all duration-300",
-          state === "pending" && "bg-muted text-muted-foreground border-border",
-          state === "active" && "hf-step-node-active",
-          state === "done" && "hf-step-node-done",
-        )}
+        className="flex items-center justify-center rounded-full border font-bold"
+        style={{
+          width: 44,
+          height: 44,
+          fontSize: 14,
+          transition: "all 0.4s ease",
+          ...(state === "pending" && {
+            background: "var(--bg-grid)",
+            color: "var(--muted-foreground)",
+            borderColor: "var(--border)",
+          }),
+          ...(state === "active" && {
+            background: "var(--grad-forge)",
+            color: "#fff",
+            borderColor: "transparent",
+            boxShadow: "0 0 0 6px color-mix(in oklab, var(--ember) 22%, transparent)",
+          }),
+          ...(state === "done" && {
+            background: "var(--grad-brand)",
+            color: "#fff",
+            borderColor: "transparent",
+            boxShadow: "0 6px 18px -6px var(--primary-glow)",
+          }),
+        }}
       >
         {state === "done" ? (
-          <CheckIcon className="size-5" />
+          <CheckIcon size={18} />
         ) : state === "active" ? (
           <span className="hf-spinner" />
         ) : (
@@ -175,25 +212,46 @@ function StepNode({
         )}
       </div>
       <div
-        className={cn(
-          "mt-2.5 text-[13px] font-semibold",
-          state === "pending" && "text-muted-foreground",
-          state === "active" && "text-[color:var(--ember)]",
-        )}
+        className="font-semibold"
+        style={{
+          marginTop: 10,
+          fontSize: 13,
+          color:
+            state === "pending"
+              ? "var(--muted-foreground)"
+              : state === "active"
+                ? "var(--ember)"
+                : "var(--foreground)",
+        }}
       >
         {label}
       </div>
-      <div className="text-muted-foreground mt-0.5 px-1 font-mono text-[11px]">{note}</div>
+      <div
+        className="font-mono"
+        style={{
+          fontSize: 11,
+          color: "var(--muted-foreground)",
+          marginTop: 2,
+          padding: "0 6px",
+        }}
+      >
+        {note}
+      </div>
     </div>
   );
 }
 
 function StepConnector({ active }: { active: boolean }) {
   return (
-    <div className="mt-[22px] h-0.5 w-7 shrink-0 self-start">
+    <div className="shrink-0 self-start" style={{ marginTop: 21, height: 2, width: 28 }}>
       <div
-        className="h-full w-full rounded-full transition-colors duration-500"
-        style={{ background: active ? "var(--grad-forge)" : "var(--border)" }}
+        style={{
+          height: "100%",
+          width: "100%",
+          borderRadius: 999,
+          background: active ? "var(--grad-forge)" : "var(--border)",
+          transition: "background 0.4s",
+        }}
       />
     </div>
   );
@@ -201,18 +259,39 @@ function StepConnector({ active }: { active: boolean }) {
 
 function StatTile({ label, value, suffix }: { label: string; value: number; suffix: string }) {
   return (
-    <div className="bg-muted rounded-xl border p-4">
-      <div className="text-muted-foreground font-mono text-[10px] tracking-[0.1em] uppercase">
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 12,
+        background: "var(--bg-grid)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div
+        className="font-mono uppercase"
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.1em",
+          color: "var(--muted-foreground)",
+        }}
+      >
         {label}
       </div>
-      <div className="mt-1.5 text-2xl font-bold tabular-nums">
+      <div
+        className="font-bold tabular-nums"
+        style={{ marginTop: 6, fontSize: 28, lineHeight: 1.1 }}
+      >
         {value}
-        <span className="text-muted-foreground text-sm font-normal">{suffix}</span>
+        <span
+          style={{
+            fontSize: 14,
+            color: "var(--muted-foreground)",
+            fontWeight: 400,
+          }}
+        >
+          {suffix}
+        </span>
       </div>
     </div>
   );
-}
-
-function cn(...args: Array<string | false | null | undefined>) {
-  return args.filter(Boolean).join(" ");
 }

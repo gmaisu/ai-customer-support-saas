@@ -130,12 +130,24 @@
  * (crawl steps, sparks, in-flight states). Don't sprinkle them everywhere.
  */
 :root {
+  /* Neutral surface tokens — match the Helpforge prototype's palette */
+  --bg-soft: #fafafa;
+  --bg-grid: #f5f5f7;
+  --border-strong: #d4d4d8;
+
+  --primary-hex: #7c3aed;
+  --primary-soft: #ede9fe;
+  --primary-text: #5b21b6;
+  --primary-glow: rgba(124, 58, 237, 0.35);
+
   --forge: #f59e0b;
   --ember: #fb923c;
   --forge-soft: #fef3c7;
   --forge-glow: rgba(251, 146, 60, 0.55);
-  --primary-hex: #7c3aed;
-  --primary-glow: rgba(124, 58, 237, 0.35);
+
+  --success: #059669;
+  --warn: #d97706;
+  --danger: #dc2626;
 
   --grad-brand: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #d946ef 100%);
   --grad-forge: linear-gradient(135deg, #d946ef 0%, #f97316 60%, #f59e0b 100%);
@@ -143,11 +155,23 @@
 }
 
 .dark {
+  --bg-soft: #0e0e11;
+  --bg-grid: #111114;
+  --border-strong: #3a3a42;
+
+  --primary-soft: rgba(167, 139, 250, 0.14);
+  --primary-text: #c4b5fd;
+  --primary-glow: rgba(167, 139, 250, 0.45);
+
   --forge: #fbbf24;
   --ember: #fb923c;
   --forge-soft: rgba(251, 146, 60, 0.16);
   --forge-glow: rgba(251, 146, 60, 0.7);
-  --primary-glow: rgba(167, 139, 250, 0.45);
+
+  --success: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+
   --grad-brand: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #e879f9 100%);
   --grad-forge: linear-gradient(135deg, #c026d3 0%, #ea580c 60%, #f59e0b 100%);
   --grad-soft: linear-gradient(180deg, rgba(124, 58, 237, 0.08) 0%, transparent 70%);
@@ -319,6 +343,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Match the Helpforge design's 14px base — denser than Tailwind's default
+     * 16px, in line with modern SaaS typography (Linear, Vercel, etc).
+     */
+    font-size: 14px;
+    line-height: 1.5;
   }
   html {
     @apply font-sans;
